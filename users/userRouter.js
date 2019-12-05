@@ -4,20 +4,25 @@ const Post = require('../posts/postDb');
 
 const router = express.Router();
 
-//endpoint to create new user -WORKS
-router.post('/', validateUser, (req, res) => {
-  const newUser = req.body;
+// router.post('/', validateUser, (req, res) => {
+//   const newUser = req.body;
 
-  User.insert(newUser)
-    .then(user => {
-      res.status(201).json(user);
-    })
-    .catch(err => {
-      res.status(500).json({ message: `${err} Unable to add new user.` })
-    })
+//   User.insert(newUser)
+//     .then(user => {
+//       res.status(201).json(user);
+//     })
+//     .catch(err => {
+//       res.status(500).json({ message: `${err} Unable to add new user.` })
+//     })
+// });
+
+//****************endpoint to create new user -WORKS******************
+router.post('/', validateUser, (req, res) => {
+  res.status(201).json(req.user)
 });
 
-//endpoint to add a post to a user - WORKS
+
+//*****************endpoint to add a post to a user - WORKS********************
 router.post('/:id/posts', validateUserId, validatePost, (req, res) => {
   Post.insert(req.body)
     .then(post => {
@@ -29,7 +34,7 @@ router.post('/:id/posts', validateUserId, validatePost, (req, res) => {
     })
 });
 
-//endpoint to retrieve all users - WORKS
+//******endpoint to retrieve all users - WORKS*******
 router.get('/', (req, res) => {
   User.get()
     .then(users => {
@@ -40,7 +45,7 @@ router.get('/', (req, res) => {
     })
 });
 
-//endpoint to get user data - WORKS
+//**********endpoint to get user data - WORKS********
 router.get('/:id', (req, res) => {
   const { id } = req.params;
   User.getById(id)
@@ -52,7 +57,7 @@ router.get('/:id', (req, res) => {
     })
 });
 
-//endpoint to get posts from user - WORKS
+//******endpoint to get posts from user - WORKS******
 router.get('/:id/posts', validateUserId, (req, res) => {
   const { id } = req.params;
   User.getUserPosts(id)
@@ -65,29 +70,40 @@ router.get('/:id/posts', validateUserId, (req, res) => {
 });
 
 //endpoint to delete user - WORKS
+// router.delete('/:id', validateUserId, (req, res) => {
+//   const { id } = req.params;
+//   User.remove(id)
+//     .then(deletedUser => {
+//       res.status(204).json(deletedUser);
+//     })
+//     .catch(err => {
+//       res.status(500).json({ message: "Unable to delete user." })
+//     })
+// });
 router.delete('/:id', validateUserId, (req, res) => {
   const { id } = req.params;
+
   User.remove(id)
     .then(deletedUser => {
-      res.status(204).end();
+      res.status(200).end()
     })
     .catch(err => {
-      res.status(500).json({ message: "Unable to delete user." })
+      res.status(500).json({ message: `Unable to delete user. ${err}` })
     })
-});
+})
 
 //endpoint to update user information - WORKS
-router.put('/:id', validateUserId, (req, res) => {
+router.put('/:id', (req, res) => {
   const { id } = req.params;
   User.update(id, req.body)
     .then(updatedUser => {
-      res.status(200).json({ message: "User updated successfully." })
+      res.status(200).json(updatedUser)
     })
     .catch(err => {
       if(!req.body.name) {
         res.status(400).json({ message: "The required name field does not exist." })
       } else {
-        res.status(500).json({ message: "Unable to update the user information." })
+        res.status(500).json({ message: `Unable to update the user information. ${err}` })
       }
     })
 });
@@ -105,7 +121,10 @@ function validateUserId(req, res, next) {
         res.status(400).json({ message: "Invalid user ID" })
       }
     })
-}
+    .catch(err => {
+      res.status(500).json({ message: `Unable to retrieve user info ${err}` })
+    })
+};
 
 function validateUser(req, res, next) {
   User.insert(req.body)
@@ -115,22 +134,31 @@ function validateUser(req, res, next) {
     })
     .catch(err => {
       if (Object.keys(req.body).length === 0) {
-        res.status(400).json({ message: "Missing user data." })
+          res.status(400).json({ message: "Missing user data." })
       } else if (!req.body.name) {
-        res.status(400).json({ message: "Missing required name field." })
+          res.status(400).json({ message: "Missing required name field." })
       } else {
-        next()
+          res.status(500).json({ meesage: `Unable to add user to database. ${err}` })
       }
     })
 };
 
 function validatePost(req, res, next) {
+  const { text } = req.body;
+
   if (Object.keys(req.body).length === 0) {
     res.status(400).json({ message: "Missing user data." })
-  } else if (!req.body.name) {
+  } else if (!text) {
     res.status(400).json({ message: "Missing required text field." })
   } else {
-    next()
+    Post.insert(req.body)
+      .then(post => {
+        req.post = post;
+        next()
+      })
+      .catch(err => {
+        res.status(500).json({ message: `Unable to add post to database. ${err}` })
+      })
   }
 };
 
