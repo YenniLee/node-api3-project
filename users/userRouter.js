@@ -5,7 +5,7 @@ const Post = require('../posts/postDb');
 const router = express.Router();
 
 //endpoint to create new user -WORKS
-router.post('/', (req, res) => {
+router.post('/', validateUser, (req, res) => {
   const newUser = req.body;
 
   User.insert(newUser)
@@ -18,8 +18,7 @@ router.post('/', (req, res) => {
 });
 
 //endpoint to add a post to a user - WORKS
-router.post('/:id/posts', (req, res) => {
-  const { id } = req.params 
+router.post('/:id/posts', validateUserId, validatePost, (req, res) => {
   Post.insert(req.body)
     .then(post => {
       res.status(201).json(post);
@@ -54,7 +53,7 @@ router.get('/:id', (req, res) => {
 });
 
 //endpoint to get posts from user - WORKS
-router.get('/:id/posts', (req, res) => {
+router.get('/:id/posts', validateUserId, (req, res) => {
   const { id } = req.params;
   User.getUserPosts(id)
     .then(posts => {
@@ -66,7 +65,7 @@ router.get('/:id/posts', (req, res) => {
 });
 
 //endpoint to delete user - WORKS
-router.delete('/:id', (req, res) => {
+router.delete('/:id', validateUserId, (req, res) => {
   const { id } = req.params;
   User.remove(id)
     .then(deletedUser => {
@@ -78,7 +77,7 @@ router.delete('/:id', (req, res) => {
 });
 
 //endpoint to update user information - WORKS
-router.put('/:id', (req, res) => {
+router.put('/:id', validateUserId, (req, res) => {
   const { id } = req.params;
   User.update(id, req.body)
     .then(updatedUser => {
@@ -96,14 +95,43 @@ router.put('/:id', (req, res) => {
 //custom middleware
 
 function validateUserId(req, res, next) {
+  const { id } = req.params;
+  User.getById(id)
+    .then(user => {
+      if(user) {
+        req.user = user;
+        next();
+      } else {
+        res.status(400).json({ message: "Invalid user ID" })
+      }
+    })
 }
 
 function validateUser(req, res, next) {
-  // do your magic!
-}
+  User.insert(req.body)
+    .then(user => {
+      req.user = user;
+      next();
+    })
+    .catch(err => {
+      if (Object.keys(req.body).length === 0) {
+        res.status(400).json({ message: "Missing user data." })
+      } else if (!req.body.name) {
+        res.status(400).json({ message: "Missing required name field." })
+      } else {
+        next()
+      }
+    })
+};
 
 function validatePost(req, res, next) {
-  // do your magic!
-}
+  if (Object.keys(req.body).length === 0) {
+    res.status(400).json({ message: "Missing user data." })
+  } else if (!req.body.name) {
+    res.status(400).json({ message: "Missing required text field." })
+  } else {
+    next()
+  }
+};
 
 module.exports = router;
